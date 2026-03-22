@@ -1,26 +1,139 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --yellow-base: #FFFDF0;
+  --yellow-warm: #FFE082;
+  --white-sub: #FFFFFF;
+  --text-color: #795548; /* Warm brown text */
+  --diary-border: #E0E0E0;
+  --shadow-color: rgba(0, 0, 0, 0.05);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--yellow-base);
+  color: var(--text-color);
+  font-family: 'Jua', sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Cute UI Utilities */
+.rounded-card {
+  background-color: var(--white-sub);
+  border-radius: 20px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  padding: 24px;
+}
+
+.cute-input {
+  background-color: var(--white-sub);
+  border: 2px solid var(--yellow-warm);
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-family: 'Jua', sans-serif;
+  font-size: 1.2rem;
+  color: var(--text-color);
+  outline: none;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.cute-input:focus {
+  border-color: #FFB300;
+  box-shadow: 0 0 0 4px rgba(255, 224, 130, 0.3);
+}
+
+.cute-button {
+  background-color: var(--yellow-warm);
+  color: var(--text-color);
+  border: none;
+  border-radius: 20px;
+  padding: 12px 24px;
+  font-family: 'Jua', sans-serif;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.2s;
+  box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.cute-button:hover {
+  background-color: #FFCA28;
+}
+
+.cute-button:active {
+  transform: scale(0.95);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-anim {
+  animation: spin 3s linear infinite;
+}
+
+.diary-book {
+  position: relative;
+  background-color: var(--white-sub);
+  border-radius: 8px 20px 20px 8px;
+  box-shadow: -2px 4px 10px rgba(0,0,0,0.08);
+  padding: 15px 15px 15px 35px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.diary-book:hover {
+  transform: translateY(-4px);
+}
+
+.diary-book::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 12px;
+  width: 12px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 15px,
+    #cfd8dc 15px,
+    #cfd8dc 25px
+  );
+  border-radius: 6px;
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Responsive Grid for V3 Private Blog Concept */
+.diary-grid {
+  display: grid;
+  gap: 20px;
+  padding: 10px;
+  /* Mobile default: Auto-fill thin cards or single column */
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+@media (min-width: 600px) {
+  .diary-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .diary-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 30px;
+  }
 }

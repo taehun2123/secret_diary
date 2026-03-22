@@ -1,65 +1,77 @@
+"use client";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import Image from "next/image";
+import DiaryCover from "@/components/DiaryCover";
+import { DiaryEntry, getEntries } from "@/utils/store";
 
 export default function Home() {
+  const [selectedCategory, setSelectedCategory] = useState("전체");
+  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const categories = ["전체", "일상", "특별한 날", "우울한 날"];
+
+  useEffect(() => {
+    setEntries(getEntries());
+  }, []);
+
+  const filtered = selectedCategory === "전체" 
+    ? entries 
+    : entries.filter(e => e.category === selectedCategory);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '100px' }}>
+      {/* Header */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Image src="/assets/main_duck.png" alt="Duck" width={60} height={60} style={{ borderRadius: '50%', mixBlendMode: 'multiply' }} priority />
+          <div>
+             <h1 style={{ fontSize: '2rem', margin: 0, color: 'var(--text-color)' }}>내 비밀 일기장</h1>
+             <p style={{ margin: 0, color: '#9E9E9E', fontSize: '0.9rem' }}>나만의 스포티파이 플레이리스트와 함께</p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <Link href="/write" className="cute-button" style={{ textDecoration: 'none', padding: '12px 24px' }}>
+          ✏️ 새 일기 쓰기
+        </Link>
+      </header>
+      
+      {/* Categories */}
+      <nav style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
+        {categories.map(c => (
+          <button 
+            key={c}
+            onClick={() => setSelectedCategory(c)}
+            style={{
+              padding: '8px 18px',
+              borderRadius: '20px',
+              border: '2px solid var(--yellow-warm)',
+              background: selectedCategory === c ? 'var(--yellow-warm)' : 'var(--white-sub)',
+              color: 'var(--text-color)',
+              fontFamily: 'inherit',
+              fontSize: '1.1rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 4px var(--shadow-color)'
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {c}
+          </button>
+        ))}
+      </nav>
+
+      {/* Responsive Diary Grid */}
+      <div className="diary-grid">
+        {filtered.map(entry => (
+          <DiaryCover key={entry.id} entry={entry} />
+        ))}
+      </div>
+      
+      {filtered.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#9E9E9E', marginTop: '20px' }}>
+          <Image src="/assets/cloud.png" alt="Cloud" width={120} height={120} />
+          <p style={{ fontSize: '1.2rem' }}>아직 다이어리가 없어요!<br/>새 일기를 써볼까요?</p>
         </div>
-      </main>
+      )}
     </div>
   );
 }
