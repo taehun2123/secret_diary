@@ -171,7 +171,6 @@ jobs:
         run: |
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/app-deployment.yaml
-          kubectl apply -f k8s/ingress.yaml
 
       - name: Wait for deployment rollout
         run: |
@@ -197,4 +196,3 @@ jobs:
           kubectl get deployments -n ${{ env.NAMESPACE }}
           kubectl get pods -n ${{ env.NAMESPACE }} -o wide
           kubectl get services -n ${{ env.NAMESPACE }}
-          kubectl get ingress -n ${{ env.NAMESPACE }}
