@@ -104,9 +104,40 @@ jobs:
             exit 1
           fi
 
+          if [ -z "${{ secrets.K3S_API_SERVER }}" ]; then
+            echo "K3S_API_SERVER secret is not set."
+            echo "Example: https://your-k3s-host-or-domain:6443"
+            exit 1
+          fi
+
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          kubeconfig = Path.home() / ".kube" / "config"
+          text = kubeconfig.read_text()
+          lines = text.splitlines()
+          server = os.environ["K3S_API_SERVER"]
+
+          replaced = False
+          for idx, line in enumerate(lines):
+            if line.lstrip().startswith("server:"):
+              indent = line[:len(line) - len(line.lstrip())]
+              lines[idx] = f"{indent}server: {server}"
+              replaced = True
+              break
+
+          if not replaced:
+            raise SystemExit("No server entry found in kubeconfig")
+
+          kubeconfig.write_text("\n".join(lines) + "\n")
+          PY
+        env:
+          K3S_API_SERVER: ${{ secrets.K3S_API_SERVER }}
 
       - name: Verify cluster connection
         run: |
