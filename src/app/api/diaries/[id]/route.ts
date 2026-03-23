@@ -3,10 +3,16 @@ import { verifyToken, extractTokenFromHeader } from '@/lib/auth';
 import { getDiaryById, updateDiary, deleteDiary } from '@/lib/db';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getAdminSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase admin environment variables');
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey);
+}
 
 // GET /api/diaries/:id - Get specific diary
 export async function GET(
@@ -221,6 +227,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getAdminSupabase();
     const { id } = await params;
     const authorization = request.headers.get('authorization');
     const token = extractTokenFromHeader(authorization);
