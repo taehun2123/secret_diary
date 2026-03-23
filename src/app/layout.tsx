@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SpotifyProvider from "@/components/SpotifyProvider";
+import { AuthProvider } from "@/components/AuthProvider";
 import AuthGuard from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
@@ -16,11 +17,13 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <SpotifyProvider>
-          <AuthGuard>
-            {children}
-          </AuthGuard>
-        </SpotifyProvider>
+        <AuthProvider>
+          <SpotifyProvider>
+            <AuthGuard>
+              {children}
+            </AuthGuard>
+          </SpotifyProvider>
+        </AuthProvider>
       </body>
     </html>
   );

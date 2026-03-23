@@ -1,0 +1,249 @@
+"use client";
+
+import { useState, useEffect, use } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Edit3, Palette } from "lucide-react";
+import PostPlayer from "@/components/PostPlayer";
+import { useAuth } from "@/components/AuthProvider";
+
+interface Sticker {
+  id: number;
+  src: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  shape?: 'none' | 'circle' | 'rounded' | 'triangle' | 'star' | 'oval';
+}
+
+interface DiaryEntry {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  date: string;
+  music: string | null;
+  images: string[];
+  coverStickers: Sticker[];
+}
+
+export default function ReadPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const { id } = use(params);
+  const [entry, setEntry] = useState<DiaryEntry | null>(null);
+  const [isOpening, setIsOpening] = useState(true);
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const fetchEntry = async () => {
+      if (!token) return;
+
+      try {
+        const response = await fetch(`/api/diaries/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          setEntry(data.data);
+        } else {
+          console.error('Failed to fetch diary:', data.error);
+          router.push("/");
+        }
+      } catch (error) {
+        console.error('Error fetching diary:', error);
+        router.push("/");
+      }
+    };
+
+    fetchEntry();
+
+    // Trigger opening animation
+    const timer = setTimeout(() => {
+      setIsOpening(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [id, router, token]);
+
+  if (!entry) {
+    return (
+      <div className="read-container">
+        <div className="read-loading">로딩 중...</div>
+      </div>
+    );
+  }
+
+  const getShapeStyle = (shape?: Sticker['shape']) => {
+    switch (shape) {
+      case 'circle':
+        return { clipPath: 'circle(50% at 50% 50%)' };
+      case 'rounded':
+        return { borderRadius: '20%' };
+      case 'triangle':
+        return { clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' };
+      case 'star':
+        return { clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' };
+      case 'oval':
+        return { borderRadius: '50%' };
+      default:
+        return {};
+    }
+  };
+
+  const renderCover = () => (
+    <>
+      <div className="binder-rings-left">
+        {[15, 35, 55, 75].map(top => (
+          <div key={top} className="ring" style={{ top: `${top}%` }} />
+        ))}
+      </div>
+      <div className="left-page-content">
+        <div className="cover-preview">
+          <div className="cover-preview-bg">
+            {entry.coverStickers.map(s => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={s.id}
+                src={s.src}
+                alt="sticker"
+                className="preview-sticker"
+                style={{
+                  position: 'absolute',
+                  left: `${s.x}%`,
+                  top: `${s.y}%`,
+                  width: `${s.width || 25}%`,
+                  height: `${s.height || 25}%`,
+                  transform: `rotate(${s.rotation || 0}deg)`,
+                  objectFit: 'contain',
+                  mixBlendMode: 'multiply',
+                  filter: 'drop-shadow(2px 3px 5px rgba(0,0,0,0.15))',
+                  pointerEvents: 'none',
+                  ...getShapeStyle(s.shape)
+                }}
+              />
+            ))}
+          </div>
+          <div className="cover-info-box">
+            <h2 className="cover-title">{entry.title}</h2>
+            <p className="cover-date">{entry.date}</p>
+            <p className="cover-category">{entry.category}</p>
+          </div>
+        </div>
+        <div className="left-page-decoration">
+          <Image
+            src="/assets/duck_v8.png"
+            alt="duck"
+            width={80}
+            height={80}
+            className="decoration-duck"
+          />
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className={`read-container ${isOpening ? 'book-opening' : 'book-opened'}`}>
+      {/* Header */}
+      <header className="read-header">
+        <Link href="/" className="read-back-button">
+          <ArrowLeft size={20} strokeWidth={2.5} className="lucide-icon" /> <span className="back-button-text">목록으로</span>
+        </Link>
+        <div className="read-actions">
+          <Link href={`/write?edit=${entry.id}`} className="cute-button edit-button">
+            <Edit3 size={18} strokeWidth={2.5} className="lucide-icon" /> <span className="edit-button-text">수정</span>
+          </Link>
+          <Link href={`/decorate/${entry.id}`} className="cute-button edit-button">
+            <Palette size={18} strokeWidth={2.5} className="lucide-icon" /> <span className="decorate-button-text">표지 꾸미기</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* Open Diary Book */}
+      <div className="diary-book-open">
+
+        {/* Magic Flap (Physical Front Cover Illusion) */}
+        <div className="magic-flap">
+          <div className="magic-flap-front diary-page" style={{ height: '100%', boxShadow: 'none' }}>
+            {renderCover()}
+          </div>
+          <div className="magic-flap-back diary-page"></div>
+        </div>
+
+        {/* Left Page - Cover with stickers */}
+        <div className="diary-page left-page">
+          {renderCover()}
+        </div>
+
+        {/* Center Binder */}
+        <div className="center-binder">
+          {[10, 30, 50, 70, 90].map(top => (
+            <div key={top} className="binder-ring" style={{ top: `${top}%` }} />
+          ))}
+        </div>
+
+        {/* Right Page - Content */}
+        <div className="diary-page right-page">
+          {/* Binder Rings on Right Page */}
+          <div className="binder-rings-right">
+            {[15, 35, 55, 75].map(top => (
+              <div key={top} className="ring" style={{ top: `${top}%` }} />
+            ))}
+          </div>
+
+          <div className="right-page-content">
+            <div className="diary-header">
+              <h1 className="diary-title">{entry.title}</h1>
+              <div className="diary-meta">
+                <span className="meta-date">📅 {entry.date}</span>
+                <span className="meta-category">🏷️ {entry.category}</span>
+              </div>
+            </div>
+
+            {/* Images Gallery */}
+            {entry.images && entry.images.length > 0 && (
+              <div className="diary-images-gallery">
+                {entry.images.map((img, index) => (
+                  <div key={index} className="diary-image-item">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img} alt={`Diary image ${index + 1}`} className="diary-image" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="diary-content">
+              <p className="content-text">{entry.content}</p>
+            </div>
+
+            {/* Music Player */}
+            {entry.music && (
+              <div className="diary-music">
+                <div className="music-label">🎵 이 일기의 음악</div>
+                <PostPlayer musicJson={entry.music} id={`read-${entry.id}`} />
+              </div>
+            )}
+
+            {/* Cloud decoration */}
+            <div className="right-page-decoration">
+              <Image
+                src="/assets/cloud_v6.png"
+                alt="cloud"
+                width={60}
+                height={60}
+                className="decoration-cloud"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

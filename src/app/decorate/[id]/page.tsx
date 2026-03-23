@@ -4,8 +4,31 @@ import { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { DiaryEntry, getEntries, saveEntries, Sticker } from "@/utils/store";
+import { Save, Trash2, Plus, X, Palette } from "lucide-react";
 import DiaryCover from "@/components/DiaryCover";
+import { useAuth } from "@/components/AuthProvider";
+
+interface Sticker {
+  id: number;
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  shape: 'none' | 'circle' | 'rounded' | 'triangle' | 'star' | 'oval';
+}
+
+interface DiaryEntry {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  date: string;
+  music: string | null;
+  images: string[];
+  coverStickers: Sticker[];
+}
 
 export default function DecoratePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -14,149 +37,479 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { token } = useAuth();
 
   useEffect(() => {
-    const entries = getEntries();
-    const target = entries.find(e => e.id === id);
-    if (target) {
-      setEntry(target);
-      setStickers(target.coverStickers || []);
-    }
-  }, [id]);
+    const fetchEntry = async () => {
+      if (!token) return;
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const url = URL.createObjectURL(e.target.files[0]);
-      setUploadedImages([...uploadedImages, url]);
+      try {
+        const response = await fetch(`/api/diaries/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          setEntry(data.data);
+          setStickers(data.data.coverStickers || []);
+        } else {
+          console.error('Failed to fetch diary:', data.error);
+          router.push("/");
+        }
+      } catch (error) {
+        console.error('Error fetching diary:', error);
+        router.push("/");
+      }
+    };
+
+    fetchEntry();
+  }, [id, token, router]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+
+    if (!token) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const files = Array.from(e.target.files);
+      const uploadedUrls: string[] = [];
+
+      for (const file of files) {
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name}은(는) 5MB를 초과합니다. 건너뜁니다.`);
+          continue;
+        }
+
+        // Upload to Supabase Storage
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.data.url) {
+          uploadedUrls.push(data.data.url);
+        } else {
+          console.error('Upload failed:', data.error);
+          alert(`${file.name} 업로드 실패: ${data.error?.message || '알 수 없는 오류'}`);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setUploadedImages([...uploadedImages, ...uploadedUrls]);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      e.target.value = '';
     }
   };
 
   const addStickerToDiary = (src: string) => {
-    setStickers([...stickers, { id: Date.now(), src, x: 40, y: 40 }]); // Default to center-ish
+    setStickers([...stickers, {
+      id: Date.now(),
+      src,
+      x: 40,
+      y: 40,
+      width: 25,
+      height: 25,
+      rotation: 0,
+      shape: 'none'
+    }]); // Default to center-ish with 25% size
   };
 
-  const handleSave = () => {
-    const entries = getEntries();
-    const newEntries = entries.map(e => e.id === id ? { ...e, coverStickers: stickers } : e);
-    saveEntries(newEntries);
-    alert("다이어리 표지가 예쁘게 꾸며졌어요! 💛");
-    router.push("/");
+  const removeSticker = (stickerId: number) => {
+    setStickers(stickers.filter(s => s.id !== stickerId));
+  };
+
+  const removeAllStickers = () => {
+    if (stickers.length === 0) {
+      alert("삭제할 스티커가 없습니다!");
+      return;
+    }
+    if (confirm(`모든 스티커 ${stickers.length}개를 삭제하시겠습니까?`)) {
+      setStickers([]);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!token) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(`/api/diaries/${id}/stickers`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          stickers,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("다이어리 표지가 예쁘게 꾸며졌어요! 💛");
+        router.push("/");
+      } else {
+        alert(`저장 실패: ${data.error?.message || '알 수 없는 오류'}`);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Dragging logic with Percentages
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [offsetPct, setOffsetPct] = useState({ x: 0, y: 0 });
+  const [isOverDeleteZone, setIsOverDeleteZone] = useState(false);
+  const deleteZoneRef = useRef<HTMLDivElement>(null);
+
+  // Resizing logic
+  const [resizingId, setResizingId] = useState<number | null>(null);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+
+  // Rotating logic
+  const [rotatingId, setRotatingId] = useState<number | null>(null);
+  const [rotateStart, setRotateStart] = useState({ x: 0, y: 0, rotation: 0 });
+
+  // Shape editing
+  const [editingShapeId, setEditingShapeId] = useState<number | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent, s_id: number) => {
-    e.preventDefault(); 
+    e.preventDefault();
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
-    
+
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const stickerRect = target.getBoundingClientRect();
-    
+
     // offset mapping: cursor position inside the sticker element mapping to percentage
     const offsetX = e.clientX - stickerRect.left;
     const offsetY = e.clientY - stickerRect.top;
-    
+
     setDraggingId(s_id);
-    setOffsetPct({ 
-       x: (offsetX / rect.width) * 100, 
-       y: (offsetY / rect.height) * 100 
+    setOffsetPct({
+       x: (offsetX / rect.width) * 100,
+       y: (offsetY / rect.height) * 100
     });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (resizingId !== null) {
+      handleResizeMove(e);
+      return;
+    }
+
+    if (rotatingId !== null) {
+      handleRotateMove(e);
+      return;
+    }
+
     if (draggingId === null || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    
+
     // Calculate new top/left percentage
     const percentX = ((e.clientX - rect.left) / rect.width) * 100 - offsetPct.x;
     const percentY = ((e.clientY - rect.top) / rect.height) * 100 - offsetPct.y;
 
-    setStickers(prev => prev.map(s => 
+    setStickers(prev => prev.map(s =>
       s.id === draggingId ? { ...s, x: percentX, y: percentY } : s
     ));
+
+    // Check if over delete zone
+    if (deleteZoneRef.current) {
+      const deleteRect = deleteZoneRef.current.getBoundingClientRect();
+      const isOver = (
+        e.clientX >= deleteRect.left &&
+        e.clientX <= deleteRect.right &&
+        e.clientY >= deleteRect.top &&
+        e.clientY <= deleteRect.bottom
+      );
+      setIsOverDeleteZone(isOver);
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     const target = e.currentTarget as HTMLElement;
     target.releasePointerCapture(e.pointerId);
+
+    // Delete sticker if dropped in delete zone
+    if (isOverDeleteZone && draggingId !== null) {
+      removeSticker(draggingId);
+    }
+
     setDraggingId(null);
+    setResizingId(null);
+    setRotatingId(null);
+    setIsOverDeleteZone(false);
+  };
+
+  const handleResizeStart = (e: React.PointerEvent, s_id: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const sticker = stickers.find(s => s.id === s_id);
+    if (!sticker) return;
+
+    setResizingId(s_id);
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: sticker.width,
+      height: sticker.height,
+    });
+  };
+
+  const handleResizeMove = (e: React.PointerEvent) => {
+    if (resizingId === null || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const deltaX = e.clientX - resizeStart.x;
+    const deltaY = e.clientY - resizeStart.y;
+
+    // Use the larger delta for proportional scaling
+    const delta = Math.max(deltaX, deltaY);
+    const scaleFactor = (delta / rect.width) * 100;
+
+    const newWidth = Math.max(10, Math.min(50, resizeStart.width + scaleFactor));
+    const newHeight = Math.max(10, Math.min(50, resizeStart.height + scaleFactor));
+
+    setStickers(prev => prev.map(s =>
+      s.id === resizingId ? { ...s, width: newWidth, height: newHeight } : s
+    ));
+  };
+
+  const handleRotateStart = (e: React.PointerEvent, s_id: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const sticker = stickers.find(s => s.id === s_id);
+    if (!sticker || !containerRef.current) return;
+
+    setRotatingId(s_id);
+    setRotateStart({
+      x: e.clientX,
+      y: e.clientY,
+      rotation: sticker.rotation
+    });
+  };
+
+  const handleRotateMove = (e: React.PointerEvent) => {
+    if (rotatingId === null || !containerRef.current) return;
+
+    const deltaX = e.clientX - rotateStart.x;
+
+    // Rotate 1 degree per pixel moved horizontally
+    const newRotation = rotateStart.rotation + deltaX;
+
+    setStickers(prev => prev.map(s =>
+      s.id === rotatingId ? { ...s, rotation: newRotation % 360 } : s
+    ));
+  };
+
+  const changeShape = (stickerId: number, shape: Sticker['shape']) => {
+    setStickers(prev => prev.map(s =>
+      s.id === stickerId ? { ...s, shape } : s
+    ));
+    setEditingShapeId(null);
+  };
+
+  const getShapeStyle = (shape: Sticker['shape']) => {
+    switch (shape) {
+      case 'circle':
+        return { clipPath: 'circle(50% at 50% 50%)' };
+      case 'rounded':
+        return { borderRadius: '20%' };
+      case 'triangle':
+        return { clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' };
+      case 'star':
+        return { clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' };
+      case 'oval':
+        return { borderRadius: '50%' };
+      default:
+        return {};
+    }
   };
 
   if (!entry) return <div style={{ padding: 20 }}>로딩중...</div>;
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '100vh', overflow: 'hidden' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '1.6rem', margin: 0, color: 'var(--text-color)' }}>🎨 '{entry.title}' 표지 꾸미기</h1>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="cute-button" onClick={handleSave}>저장하기</button>
-          <Link href="/" style={{ textDecoration: 'none', color: '#9E9E9E', fontWeight: 'bold', alignSelf: 'center' }}>✕ 취소</Link>
+    <div className="decorate-container">
+      <header className="decorate-header">
+        <h1 className="decorate-title"><Palette size={24} strokeWidth={2.5} className="lucide-icon" /> '<span className="entry-title-text">{entry.title}</span>' 표지 꾸미기</h1>
+        <div className="decorate-actions">
+          <button className="cute-button remove-all-button" onClick={removeAllStickers}>
+            <Trash2 size={18} strokeWidth={2.5} className="lucide-icon" /> <span className="remove-all-text">모두 삭제</span>
+          </button>
+          <button className="cute-button save-button" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "저장 중..." : <><Save size={18} strokeWidth={2.5} className="lucide-icon" /> 저장하기</>}
+          </button>
+          <Link href="/" className="decorate-cancel-button"><X size={18} strokeWidth={2.5} className="lucide-icon" /> <span className="cancel-button-text">취소</span></Link>
         </div>
       </header>
 
       {/* Diary Canvas (1:1 with Home DiaryCover via Wrapper) */}
-      <div 
+      <div
         ref={containerRef}
-        style={{ 
-          margin: '0 auto',
-          width: '100%', 
-          maxWidth: '350px', // Exact max-width to simulate Home grid sizes nicely
-          touchAction: 'none' // Prevent scrolling
-        }}
+        className="decorate-canvas"
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
         <DiaryCover entry={entry} isPreview={true}>
-          <div style={{ position: 'absolute', top: '15%', right: '10%', color: '#A1887F', fontSize: '1rem', opacity: 0.6, pointerEvents: 'none', zIndex: 1, fontFamily: 'var(--font-geist-sans), sans-serif' }}>
+          <div className="sticker-hint">
             여기에 스티커를 붙여보세요!
           </div>
 
           {stickers.map(sticker => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img 
+            <div
               key={sticker.id}
-              src={sticker.src}
-              alt="sticker"
+              className="sticker-wrapper"
               style={{
                 position: 'absolute',
                 left: `${sticker.x}%`,
                 top: `${sticker.y}%`,
-                width: '25%', // Matches DiaryCover width exactly
-                cursor: draggingId === sticker.id ? 'grabbing' : 'grab',
-                zIndex: draggingId === sticker.id ? 100 : 1,
-                userSelect: 'none',
-                mixBlendMode: 'multiply', // Transparent illusion
-                filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.15))'
+                width: `${sticker.width}%`,
+                height: `${sticker.height}%`,
+                transform: `rotate(${sticker.rotation}deg)`,
+                zIndex: draggingId === sticker.id || resizingId === sticker.id || rotatingId === sticker.id ? 100 : 1,
+                filter: 'drop-shadow(2px 3px 5px rgba(0,0,0,0.15))',
+                ...getShapeStyle(sticker.shape)
               }}
-              onPointerDown={(e) => handlePointerDown(e, sticker.id)}
-              draggable="false"
-            />
+            >
+              <button
+                className="sticker-delete-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeSticker(sticker.id);
+                }}
+                title="스티커 삭제"
+              >
+                <X size={14} strokeWidth={3} />
+              </button>
+
+              {/* Shape selector button */}
+              <button
+                className="sticker-shape-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingShapeId(editingShapeId === sticker.id ? null : sticker.id);
+                }}
+                title="모양 변경"
+              >
+                ◇
+              </button>
+
+              {/* Shape selector popup */}
+              {editingShapeId === sticker.id && (
+                <div className="shape-selector-popup">
+                  <button onClick={() => changeShape(sticker.id, 'none')} title="원본">□</button>
+                  <button onClick={() => changeShape(sticker.id, 'circle')} title="원형">●</button>
+                  <button onClick={() => changeShape(sticker.id, 'rounded')} title="둥근직사각형">▢</button>
+                  <button onClick={() => changeShape(sticker.id, 'triangle')} title="세모">▲</button>
+                  <button onClick={() => changeShape(sticker.id, 'star')} title="별">★</button>
+                  <button onClick={() => changeShape(sticker.id, 'oval')} title="타원형">⬭</button>
+                </div>
+              )}
+
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={sticker.src}
+                alt="sticker"
+                className="draggable-sticker"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  cursor: draggingId === sticker.id ? 'grabbing' : 'grab',
+                  userSelect: 'none',
+                  mixBlendMode: 'multiply'
+                }}
+                onPointerDown={(e) => handlePointerDown(e, sticker.id)}
+                draggable="false"
+              />
+
+              {/* Resize handle */}
+              <div
+                className="sticker-resize-handle"
+                onPointerDown={(e) => handleResizeStart(e, sticker.id)}
+                title="크기 조절"
+              />
+
+              {/* Rotate handle */}
+              <div
+                className="sticker-rotate-handle"
+                onPointerDown={(e) => handleRotateStart(e, sticker.id)}
+                title="회전"
+              />
+            </div>
           ))}
         </DiaryCover>
       </div>
 
+      {/* Delete Zone */}
+      <div
+        ref={deleteZoneRef}
+        className={`delete-zone ${isOverDeleteZone ? 'delete-zone-active' : ''}`}
+      >
+        <div className="delete-zone-content">
+          <Trash2 size={20} strokeWidth={2.5} className="lucide-icon" /> <span className="delete-zone-text">여기로 드래그하여 삭제</span>
+        </div>
+      </div>
+
       {/* Sticker Palette */}
-      <div className="rounded-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0, marginTop: 'auto', marginBottom: '40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 'bold', color: 'var(--text-color)' }}>내 스티커</span>
-          <label className="cute-button" style={{ cursor: 'pointer', background: '#FFF59D', fontSize: '1rem', padding: '8px 16px' }}>
-            + 이미지 추가
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />
+      <div className="rounded-card sticker-palette">
+        <div className="palette-header">
+          <span className="palette-title">내 스티커</span>
+          <label className={`cute-button add-sticker-button ${isUploading ? 'disabled' : ''}`}>
+            <Plus size={18} strokeWidth={3} className="lucide-icon" /> <span className="add-sticker-text">{isUploading ? '업로드 중...' : '이미지 추가'}</span>
+            <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleUpload} disabled={isUploading} />
           </label>
         </div>
-        <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', padding: '10px 0', alignItems: 'center' }}>
-          <Image src="/assets/main_duck.png" alt="duck" width={60} height={60} style={{ cursor: 'pointer', borderRadius: '10px', mixBlendMode: 'multiply' }} onClick={() => addStickerToDiary("/assets/main_duck.png")} />
-          <Image src="/assets/cotton_candy_v3.png" alt="candy" width={60} height={60} style={{ cursor: 'pointer', borderRadius: '10px', mixBlendMode: 'multiply' }} onClick={() => addStickerToDiary("/assets/cotton_candy_v3.png")} />
-          <Image src="/assets/cloud_v4.png" alt="cloud" width={60} height={60} style={{ cursor: 'pointer', borderRadius: '10px', mixBlendMode: 'multiply' }} onClick={() => addStickerToDiary("/assets/cloud_v4.png")} />
-          
+        <div className="sticker-list">
+          <Image src="/assets/duck_v11.png" alt="duck" width={60} height={60} className="sticker-item" onClick={() => addStickerToDiary("/assets/duck_v11.png")} />
+          <Image src="/assets/cotton_candy_v5.png" alt="candy" width={60} height={60} className="sticker-item" onClick={() => addStickerToDiary("/assets/cotton_candy_v5.png")} />
+          <Image src="/assets/cloud_v6.png" alt="cloud" width={60} height={60} className="sticker-item" onClick={() => addStickerToDiary("/assets/cloud_v6.png")} />
+
           {uploadedImages.map((src, i) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={src} alt="uploaded" style={{ width: '60px', height: '60px', cursor: 'pointer', objectFit: 'cover', borderRadius: '10px', mixBlendMode: 'multiply' }} onClick={() => addStickerToDiary(src)} />
+            <img key={i} src={src} alt="uploaded" className="sticker-item uploaded-sticker" onClick={() => addStickerToDiary(src)} />
           ))}
         </div>
       </div>
