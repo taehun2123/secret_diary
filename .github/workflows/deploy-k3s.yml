@@ -136,6 +136,8 @@ jobs:
 
           kubeconfig.write_text("\n".join(lines) + "\n")
           PY
+
+          kubectl config set-cluster default --insecure-skip-tls-verify=true
         env:
           K3S_API_SERVER: ${{ secrets.K3S_API_SERVER }}
 
