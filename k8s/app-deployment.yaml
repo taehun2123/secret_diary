@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secretdiary-web
+  namespace: secretdiary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secretdiary-web
+  template:
+    metadata:
+      labels:
+        app: secretdiary-web
+    spec:
+      containers:
+        - name: secretdiary-web
+          image: ghcr.io/owner/secretdiary:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 12567
+          envFrom:
+            - secretRef:
+                name: secretdiary-env
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 12567
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 12567
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

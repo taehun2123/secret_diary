@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
   reactCompiler: true,
-  // @ts-ignore - suppress ts error in next config if exists
+  // @ts-expect-error - allowedDevOrigins may not exist in the local Next type package yet
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
 };
 

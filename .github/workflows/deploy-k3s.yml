@@ -1,0 +1,165 @@
+name: Build and Deploy to k3s
+
+on:
+  pull_request:
+    branches:
+      - deploy
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - deploy
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/secretdiary
+  NAMESPACE: secretdiary
+  DEPLOYMENT_NAME: secretdiary-web
+
+concurrency:
+  group: deploy-k3s-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+      short-sha: ${{ steps.vars.outputs.short_sha }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.short_sha }}
+            type=raw,value=deploy-latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            NEXT_PUBLIC_SPOTIFY_CLIENT_ID=${{ secrets.NEXT_PUBLIC_SPOTIFY_CLIENT_ID }}
+            NEXT_PUBLIC_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_REDIRECT_URI }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+  deploy-to-k3s:
+    name: Deploy to k3s Cluster
+    needs: build-and-push
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Configure kubectl
+        run: |
+          if [ -z "${{ secrets.KUBECONFIG }}" ]; then
+            echo "KUBECONFIG secret is not set."
+            exit 1
+          fi
+
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Ensure namespace exists
+        run: kubectl apply -f k8s/namespace.yaml
+
+      - name: Create or update application secret
+        run: |
+          kubectl create secret generic secretdiary-env \
+            --namespace "${{ env.NAMESPACE }}" \
+            --from-literal=NEXT_PUBLIC_SPOTIFY_CLIENT_ID='${{ secrets.NEXT_PUBLIC_SPOTIFY_CLIENT_ID }}' \
+            --from-literal=NEXT_PUBLIC_REDIRECT_URI='${{ secrets.NEXT_PUBLIC_REDIRECT_URI }}' \
+            --from-literal=JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+            --from-literal=NEXT_PUBLIC_SUPABASE_URL='${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}' \
+            --from-literal=NEXT_PUBLIC_SUPABASE_ANON_KEY='${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}' \
+            --from-literal=SUPABASE_SERVICE_ROLE_KEY='${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}' \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Update image tag in deployment
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.short-sha }}"
+          sed -i "s|image: .*|image: ${IMAGE_TAG}|g" k8s/app-deployment.yaml
+          echo "Deploying image: ${IMAGE_TAG}"
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/app-deployment.yaml
+
+      - name: Wait for deployment rollout
+        run: |
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m || {
+            echo "Deployment rollout failed"
+            echo ""
+            echo "=== Pods ==="
+            kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+            echo ""
+            echo "=== Describe ==="
+            kubectl describe deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
+            echo ""
+            echo "=== Recent events ==="
+            kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' | tail -20
+            echo ""
+            echo "=== App logs ==="
+            kubectl logs -n ${{ env.NAMESPACE }} -l app=${{ env.DEPLOYMENT_NAME }} --tail=100 --all-containers=true || true
+            exit 1
+          }
+
+      - name: Verify deployment
+        run: |
+          kubectl get deployments -n ${{ env.NAMESPACE }}
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
+          kubectl get services -n ${{ env.NAMESPACE }}
