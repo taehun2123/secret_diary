@@ -16,7 +16,6 @@ interface Sticker {
   width: number;
   height: number;
   rotation: number;
-  shape: 'none' | 'circle' | 'rounded' | 'triangle' | 'star' | 'oval';
 }
 
 interface DiaryEntry {
@@ -135,8 +134,7 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
       y: 40,
       width: 25,
       height: 25,
-      rotation: 0,
-      shape: 'none'
+      rotation: 0
     }]); // Default to center-ish with 25% size
   };
 
@@ -204,8 +202,6 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
   const [rotatingId, setRotatingId] = useState<number | null>(null);
   const [rotateStart, setRotateStart] = useState({ x: 0, y: 0, rotation: 0 });
 
-  // Shape editing
-  const [editingShapeId, setEditingShapeId] = useState<number | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent, s_id: number) => {
     e.preventDefault();
@@ -344,29 +340,6 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
     ));
   };
 
-  const changeShape = (stickerId: number, shape: Sticker['shape']) => {
-    setStickers(prev => prev.map(s =>
-      s.id === stickerId ? { ...s, shape } : s
-    ));
-    setEditingShapeId(null);
-  };
-
-  const getShapeStyle = (shape: Sticker['shape']) => {
-    switch (shape) {
-      case 'circle':
-        return { clipPath: 'circle(50% at 50% 50%)' };
-      case 'rounded':
-        return { borderRadius: '20%' };
-      case 'triangle':
-        return { clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' };
-      case 'star':
-        return { clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' };
-      case 'oval':
-        return { borderRadius: '50%' };
-      default:
-        return {};
-    }
-  };
 
   if (!entry) return <div style={{ padding: 20 }}>로딩중...</div>;
 
@@ -400,7 +373,7 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
           {stickers.map(sticker => (
             <div
               key={sticker.id}
-              className="sticker-wrapper"
+              className="polaroid-wrapper"
               style={{
                 position: 'absolute',
                 left: `${sticker.x}%`,
@@ -409,61 +382,39 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
                 height: `${sticker.height}%`,
                 transform: `rotate(${sticker.rotation}deg)`,
                 zIndex: draggingId === sticker.id || resizingId === sticker.id || rotatingId === sticker.id ? 100 : 1,
-                filter: 'drop-shadow(2px 3px 5px rgba(0,0,0,0.15))',
-                ...getShapeStyle(sticker.shape)
               }}
             >
-              <button
-                className="sticker-delete-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeSticker(sticker.id);
-                }}
-                title="스티커 삭제"
-              >
-                <X size={14} strokeWidth={3} />
-              </button>
+              {/* Polaroid Frame */}
+              <div className="polaroid-frame">
+                {/* Tape */}
+                <div className="polaroid-tape"></div>
 
-              {/* Shape selector button */}
-              <button
-                className="sticker-shape-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingShapeId(editingShapeId === sticker.id ? null : sticker.id);
-                }}
-                title="모양 변경"
-              >
-                ◇
-              </button>
+                {/* Delete Button */}
+                <button
+                  className="sticker-delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeSticker(sticker.id);
+                  }}
+                  title="스티커 삭제"
+                >
+                  <X size={14} strokeWidth={3} />
+                </button>
 
-              {/* Shape selector popup */}
-              {editingShapeId === sticker.id && (
-                <div className="shape-selector-popup">
-                  <button onClick={() => changeShape(sticker.id, 'none')} title="원본">□</button>
-                  <button onClick={() => changeShape(sticker.id, 'circle')} title="원형">●</button>
-                  <button onClick={() => changeShape(sticker.id, 'rounded')} title="둥근직사각형">▢</button>
-                  <button onClick={() => changeShape(sticker.id, 'triangle')} title="세모">▲</button>
-                  <button onClick={() => changeShape(sticker.id, 'star')} title="별">★</button>
-                  <button onClick={() => changeShape(sticker.id, 'oval')} title="타원형">⬭</button>
-                </div>
-              )}
-
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={sticker.src}
-                alt="sticker"
-                className="draggable-sticker"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  cursor: draggingId === sticker.id ? 'grabbing' : 'grab',
-                  userSelect: 'none',
-                  mixBlendMode: 'multiply'
-                }}
-                onPointerDown={(e) => handlePointerDown(e, sticker.id)}
-                draggable="false"
-              />
+                {/* Image */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={sticker.src}
+                  alt="sticker"
+                  className="draggable-sticker"
+                  style={{
+                    cursor: draggingId === sticker.id ? 'grabbing' : 'grab',
+                    userSelect: 'none',
+                  }}
+                  onPointerDown={(e) => handlePointerDown(e, sticker.id)}
+                  draggable="false"
+                />
+              </div>
 
               {/* Resize handle */}
               <div

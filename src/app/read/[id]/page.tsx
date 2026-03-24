@@ -16,7 +16,6 @@ interface Sticker {
   width?: number;
   height?: number;
   rotation?: number;
-  shape?: 'none' | 'circle' | 'rounded' | 'triangle' | 'star' | 'oval';
 }
 
 interface DiaryEntry {
@@ -80,23 +79,6 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
     );
   }
 
-  const getShapeStyle = (shape?: Sticker['shape']) => {
-    switch (shape) {
-      case 'circle':
-        return { clipPath: 'circle(50% at 50% 50%)' };
-      case 'rounded':
-        return { borderRadius: '20%' };
-      case 'triangle':
-        return { clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' };
-      case 'star':
-        return { clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' };
-      case 'oval':
-        return { borderRadius: '50%' };
-      default:
-        return {};
-    }
-  };
-
   const renderCover = () => (
     <>
       <div className="binder-rings-left">
@@ -108,12 +90,9 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
         <div className="cover-preview">
           <div className="cover-preview-bg">
             {entry.coverStickers.map(s => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <div
                 key={s.id}
-                src={s.src}
-                alt="sticker"
-                className="preview-sticker"
+                className="polaroid-wrapper"
                 style={{
                   position: 'absolute',
                   left: `${s.x}%`,
@@ -121,13 +100,15 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
                   width: `${s.width || 25}%`,
                   height: `${s.height || 25}%`,
                   transform: `rotate(${s.rotation || 0}deg)`,
-                  objectFit: 'contain',
-                  mixBlendMode: 'multiply',
-                  filter: 'drop-shadow(2px 3px 5px rgba(0,0,0,0.15))',
-                  pointerEvents: 'none',
-                  ...getShapeStyle(s.shape)
+                  pointerEvents: 'none'
                 }}
-              />
+              >
+                <div className="polaroid-frame">
+                  <div className="polaroid-tape"></div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.src} alt="sticker" className="preview-sticker" />
+                </div>
+              </div>
             ))}
           </div>
           <div className="cover-info-box">

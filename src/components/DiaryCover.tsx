@@ -13,7 +13,6 @@ interface Sticker {
   width?: number;
   height?: number;
   rotation?: number;
-  shape?: 'none' | 'circle' | 'rounded' | 'triangle' | 'star' | 'oval';
 }
 
 interface DiaryEntry {
@@ -39,22 +38,6 @@ export default function DiaryCover({ entry, isPreview = false, children, onDelet
   const [isDeleting, setIsDeleting] = useState(false);
   const { token } = useAuth();
 
-  const getShapeStyle = (shape?: Sticker['shape']) => {
-    switch (shape) {
-      case 'circle':
-        return { clipPath: 'circle(50% at 50% 50%)' };
-      case 'rounded':
-        return { borderRadius: '20%' };
-      case 'triangle':
-        return { clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' };
-      case 'star':
-        return { clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' };
-      case 'oval':
-        return { borderRadius: '50%' };
-      default:
-        return {};
-    }
-  };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -149,20 +132,21 @@ export default function DiaryCover({ entry, isPreview = false, children, onDelet
 
       {/* Render Stickers on the Cover via Display Mode */}
       {!children && entry.coverStickers.map(s => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={s.id} src={s.src} alt="sticker" style={{
+        <div key={s.id} className="polaroid-wrapper" style={{
           position: 'absolute',
           left: `${s.x}%`,
           top: `${s.y}%`,
-          width: `${s.width || 25}%`, // Use stored width or default 25%
-          height: `${s.height || 25}%`, // Use stored height or default 25%
+          width: `${s.width || 25}%`,
+          height: `${s.height || 25}%`,
           transform: `rotate(${s.rotation || 0}deg)`,
-          objectFit: 'contain',
-          zIndex: 1,
-          mixBlendMode: 'multiply', // Magic: makes pure white backgrounds transparent!
-          filter: 'drop-shadow(2px 3px 5px rgba(0,0,0,0.1))',
-          ...getShapeStyle(s.shape)
-        }} />
+          zIndex: 1
+        }}>
+          <div className="polaroid-frame">
+            <div className="polaroid-tape"></div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.src} alt="sticker" />
+          </div>
+        </div>
       ))}
 
       {/* Editor Overlay mode */}

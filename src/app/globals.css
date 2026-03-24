@@ -2492,7 +2492,7 @@ body {
 }
 
 /* Sticker Delete Features */
-.sticker-wrapper {
+.polaroid-wrapper {
   position: relative;
 }
 
@@ -2519,7 +2519,7 @@ body {
   padding: 0;
 }
 
-.sticker-wrapper:hover .sticker-delete-btn {
+.polaroid-wrapper:hover .sticker-delete-btn {
   display: flex;
 }
 
@@ -2559,7 +2559,7 @@ body {
   font-weight: bold;
 }
 
-.sticker-wrapper:hover .sticker-resize-handle {
+.polaroid-wrapper:hover .sticker-resize-handle {
   display: flex;
 }
 
@@ -2600,7 +2600,7 @@ body {
   content: '↻';
 }
 
-.sticker-wrapper:hover .sticker-rotate-handle {
+.polaroid-wrapper:hover .sticker-rotate-handle {
   display: flex;
 }
 
@@ -2614,91 +2614,44 @@ body {
   transform: translateX(-50%) scale(0.95);
 }
 
-/* Sticker Shape Button */
-.sticker-shape-btn {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(135deg, #4CAF50, #81C784);
-  border: 2px solid white;
-  border-radius: 4px;
-  cursor: pointer;
-  display: none;
+/* Polaroid Frame Styles */
+.polaroid-wrapper {
+  position: relative;
+}
+
+.polaroid-frame {
+  width: 100%;
+  height: 100%;
+  background: white;
+  padding: 6%;
+  padding-bottom: 12%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  position: relative;
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  color: white;
-  font-weight: bold;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.polaroid-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Tape Effect */
+.polaroid-tape {
+  position: absolute;
+  top: -2%;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 40%;
+  height: 10%;
+  background: rgba(255, 248, 220, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 10;
-  transition: all 0.2s ease;
-}
-
-.sticker-wrapper:hover .sticker-shape-btn {
-  display: flex;
-}
-
-.sticker-shape-btn:hover {
-  background: linear-gradient(135deg, #388E3C, #66BB6A);
-  transform: scale(1.15);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-}
-
-.sticker-shape-btn:active {
-  transform: scale(0.95);
-}
-
-/* Shape Selector Popup */
-.shape-selector-popup {
-  position: absolute;
-  top: 35px;
-  left: 5px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 1000;
-  animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.shape-selector-popup button {
-  width: 40px;
-  height: 40px;
-  border: 2px solid #E0E0E0;
-  border-radius: 6px;
-  background: white;
-  cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.shape-selector-popup button:hover {
-  background: #F5F5F5;
-  border-color: var(--yellow-warm);
-  transform: scale(1.1);
-}
-
-.shape-selector-popup button:active {
-  transform: scale(0.95);
+  border-left: 1px solid rgba(220, 200, 180, 0.3);
+  border-right: 1px solid rgba(220, 200, 180, 0.3);
 }
 
 /* Delete Zone */
