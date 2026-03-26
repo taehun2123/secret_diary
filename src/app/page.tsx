@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { PenLine } from "lucide-react";
+import { PenLine, Edit2, Trash2 } from "lucide-react";
 import DiaryCover from "@/components/DiaryCover";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -36,7 +36,7 @@ interface GroupedEntries {
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -44,29 +44,28 @@ export default function Home() {
   const ITEMS_PER_PAGE = 8;
 
   // Fetch categories from DB
-  useEffect(() => {
-    const fetchCategories = async () => {
-      if (!token) return;
+  const fetchCategories = async () => {
+    if (!token) return;
 
-      try {
-        const response = await fetch('/api/categories', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+    try {
+      const response = await fetch('/api/categories', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (data.success) {
-          const categoryNames = data.data.map((cat: Category) => cat.name);
-          setCategories(["전체", ...categoryNames]);
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        setCategories(["전체"]); // Fallback to just "전체"
+      if (data.success) {
+        setCategories([{ id: '전체', name: '전체' } as Category, ...data.data]);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([{ id: '전체', name: '전체' } as Category]); // Fallback to just "전체"
+    }
+  };
 
+  useEffect(() => {
     fetchCategories();
   }, [token]);
 
@@ -156,6 +155,92 @@ export default function Home() {
     fetchDiaries();
   };
 
+  const handleEditCategory = async (category: Category) => {
+    if (category.name === '전체') {
+      alert('"전체" 카테고리는 수정할 수 없습니다.');
+      return;
+    }
+
+    const newName = prompt(`"${category.name}" 카테고리 이름을 변경하세요:`, category.name);
+
+    if (!newName || newName === category.name) return;
+
+    if (!newName.trim()) {
+      alert('카테고리 이름을 입력해주세요.');
+      return;
+    }
+
+    if (newName.length > 50) {
+      alert('카테고리 이름은 50자 이하여야 합니다.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/categories/${category.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: newName }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('카테고리가 수정되었습니다.');
+        await fetchCategories();
+        // If we're viewing the edited category, update selection
+        if (selectedCategory === category.name) {
+          setSelectedCategory(newName);
+        }
+      } else {
+        alert(`수정 실패: ${data.error?.message || '알 수 없는 오류'}`);
+      }
+    } catch (error) {
+      console.error('Edit category error:', error);
+      alert('카테고리 수정 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleDeleteCategory = async (category: Category) => {
+    if (category.name === '전체') {
+      alert('"전체" 카테고리는 삭제할 수 없습니다.');
+      return;
+    }
+
+    const confirmed = confirm(
+      `"${category.name}" 카테고리를 삭제하시겠습니까?\n이 카테고리의 모든 다이어리는 유지되며, 카테고리만 삭제됩니다.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/categories/${category.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('카테고리가 삭제되었습니다.');
+        await fetchCategories();
+        // If we're viewing the deleted category, switch to "전체"
+        if (selectedCategory === category.name) {
+          setSelectedCategory('전체');
+        }
+      } else {
+        alert(`삭제 실패: ${data.error?.message || '알 수 없는 오류'}`);
+      }
+    } catch (error) {
+      console.error('Delete category error:', error);
+      alert('카테고리 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   // Group entries by category for "전체" view
   const groupedEntries: GroupedEntries = {};
   if (selectedCategory === "전체") {
@@ -187,13 +272,38 @@ export default function Home() {
       {/* Categories */}
       <nav className="categories-nav">
         {categories.map(c => (
-          <button
-            key={c}
-            onClick={() => setSelectedCategory(c)}
-            className={`category-button ${selectedCategory === c ? 'active' : ''}`}
-          >
-            {c}
-          </button>
+          <div key={c.id} className="category-item">
+            <button
+              onClick={() => setSelectedCategory(c.name)}
+              className={`category-button ${selectedCategory === c.name ? 'active' : ''}`}
+            >
+              {c.name}
+            </button>
+            {c.name !== '전체' && (
+              <div className="category-actions">
+                <button
+                  className="category-action-btn edit-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditCategory(c);
+                  }}
+                  title="카테고리 수정"
+                >
+                  <Edit2 size={14} strokeWidth={2.5} />
+                </button>
+                <button
+                  className="category-action-btn delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCategory(c);
+                  }}
+                  title="카테고리 삭제"
+                >
+                  <Trash2 size={14} strokeWidth={2.5} />
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </nav>
 

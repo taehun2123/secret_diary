@@ -4,7 +4,7 @@ import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Edit3, Palette } from "lucide-react";
+import { ArrowLeft, Edit3, Palette, X, ChevronLeft, ChevronRight } from "lucide-react";
 import PostPlayer from "@/components/PostPlayer";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -35,6 +35,8 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [isOpening, setIsOpening] = useState(true);
   const { token } = useAuth();
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     const fetchEntry = async () => {
@@ -70,6 +72,39 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
 
     return () => clearTimeout(timer);
   }, [id, router, token]);
+
+  const openImageModal = (index: number) => {
+    setCurrentImageIndex(index);
+    setIsImageModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setIsImageModalOpen(false);
+  };
+
+  const goToPrevImage = () => {
+    if (!entry || entry.images.length === 0) return;
+    setCurrentImageIndex((prev) => (prev === 0 ? entry.images.length - 1 : prev - 1));
+  };
+
+  const goToNextImage = () => {
+    if (!entry || entry.images.length === 0) return;
+    setCurrentImageIndex((prev) => (prev === entry.images.length - 1 ? 0 : prev + 1));
+  };
+
+  // Keyboard navigation for modal
+  useEffect(() => {
+    if (!isImageModalOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeImageModal();
+      if (e.key === 'ArrowLeft') goToPrevImage();
+      if (e.key === 'ArrowRight') goToNextImage();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isImageModalOpen, entry]);
 
   if (!entry) {
     return (
@@ -192,7 +227,7 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
             {entry.images && entry.images.length > 0 && (
               <div className="diary-images-gallery">
                 {entry.images.map((img, index) => (
-                  <div key={index} className="diary-image-item">
+                  <div key={index} className="diary-image-item" onClick={() => openImageModal(index)}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img} alt={`Diary image ${index + 1}`} className="diary-image" />
                   </div>
@@ -225,6 +260,61 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
           </div>
         </div>
       </div>
+
+      {/* Image Gallery Modal */}
+      {isImageModalOpen && entry.images && entry.images.length > 0 && (
+        <div className="image-gallery-modal" onClick={closeImageModal}>
+          <div className="image-gallery-content" onClick={(e) => e.stopPropagation()}>
+            {/* Close Button */}
+            <button className="image-modal-close" onClick={closeImageModal}>
+              <X size={24} strokeWidth={2.5} />
+            </button>
+
+            {/* Image Container */}
+            <div className="image-modal-main">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={entry.images[currentImageIndex]}
+                alt={`Image ${currentImageIndex + 1}`}
+                className="image-modal-img"
+              />
+            </div>
+
+            {/* Navigation Buttons */}
+            {entry.images.length > 1 && (
+              <>
+                <button className="image-modal-nav prev" onClick={goToPrevImage}>
+                  <ChevronLeft size={32} strokeWidth={2.5} />
+                </button>
+                <button className="image-modal-nav next" onClick={goToNextImage}>
+                  <ChevronRight size={32} strokeWidth={2.5} />
+                </button>
+              </>
+            )}
+
+            {/* Image Counter */}
+            <div className="image-modal-counter">
+              {currentImageIndex + 1} / {entry.images.length}
+            </div>
+
+            {/* Thumbnail Strip */}
+            {entry.images.length > 1 && (
+              <div className="image-modal-thumbnails">
+                {entry.images.map((img, index) => (
+                  <div
+                    key={index}
+                    className={`image-thumbnail ${index === currentImageIndex ? 'active' : ''}`}
+                    onClick={() => setCurrentImageIndex(index)}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img} alt={`Thumbnail ${index + 1}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
