@@ -5,8 +5,8 @@ import { AuthProvider } from "@/components/AuthProvider";
 import AuthGuard from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
-  title: "My Secret Diary",
-  description: "A cute and private daily space.",
+  title: "Subin World",
+  description: "수빈이는 귀엽기떄문에 비밀 다이어리를 쓴다.",
 };
 
 export default function RootLayout({
