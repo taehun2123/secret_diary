@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Edit3, PenLine, X, Camera, Music, Search, Play } from "lucide-react";
+import { Edit3, PenLine, X, Camera, Music, Search, Play, Save } from "lucide-react";
 import { useSpotify } from "@/components/SpotifyProvider";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -33,6 +33,7 @@ export default function WritePage() {
   const { token } = useAuth();
   // useRef for search debounce already defined above
   const ref_musicSearchTimeout = musicSearchTimeout;
+  const draftLoadedRef = useRef(false);
 
   // Fetch categories from DB
   useEffect(() => {
@@ -101,6 +102,71 @@ export default function WritePage() {
 
     loadEntry();
   }, [isEditMode, editId, token]);
+
+  // Load draft from localStorage on mount (only in create mode)
+  useEffect(() => {
+    if (isEditMode || draftLoadedRef.current) return;
+
+    const draft = localStorage.getItem('diary-draft');
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        draftLoadedRef.current = true; // Mark as loaded before showing confirm
+
+        const confirmed = confirm('작성 중이던 글이 있습니다. 불러오시겠습니까?');
+
+        if (confirmed) {
+          setTitle(parsed.title || '');
+          setContent(parsed.content || '');
+          setCategory(parsed.category || '일상');
+          setImages(parsed.images || []);
+          setAttachedTracks(parsed.attachedTracks || []);
+          if (parsed.music) setMusic(parsed.music);
+        } else {
+          localStorage.removeItem('diary-draft');
+        }
+      } catch (error) {
+        console.error('Failed to load draft:', error);
+        localStorage.removeItem('diary-draft');
+      }
+    } else {
+      draftLoadedRef.current = true; // No draft, mark as loaded
+    }
+  }, [isEditMode]);
+
+  // Auto-save draft every 30 seconds (only in create mode)
+  useEffect(() => {
+    if (isEditMode) return;
+
+    const interval = setInterval(() => {
+      if (title || content || images.length > 0 || attachedTracks.length > 0) {
+        saveDraft();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [title, content, category, images, attachedTracks, music, isEditMode]);
+
+  const saveDraft = () => {
+    if (isEditMode) return;
+
+    const draft = {
+      title,
+      content,
+      category,
+      images,
+      attachedTracks,
+      music,
+      savedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem('diary-draft', JSON.stringify(draft));
+    alert('임시저장되었습니다!');
+  };
+
+  const clearDraft = () => {
+    localStorage.removeItem('diary-draft');
+  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -251,6 +317,8 @@ export default function WritePage() {
         const data = await response.json();
 
         if (data.success) {
+          // Clear draft on successful save
+          clearDraft();
           alert("일기가 저장되었습니다!");
           router.push("/");
         } else {
@@ -473,13 +541,25 @@ export default function WritePage() {
             )}
           </div>
         </div>
-        <button type="submit" className="cute-button submit-button" disabled={isSubmitting}>
-          {isSubmitting
-            ? "저장 중..."
-            : isEditMode
-            ? "수정 완료 💛"
-            : "다이어리 등록하기 💛"}
-        </button>
+        <div className="write-submit-actions">
+          {!isEditMode && (
+            <button
+              type="button"
+              className="cute-button draft-button"
+              onClick={saveDraft}
+              disabled={isSubmitting}
+            >
+              <Save size={18} strokeWidth={2.5} className="lucide-icon" /> 임시저장
+            </button>
+          )}
+          <button type="submit" className="cute-button submit-button" disabled={isSubmitting}>
+            {isSubmitting
+              ? "저장 중..."
+              : isEditMode
+              ? "수정 완료 💛"
+              : "다이어리 등록하기 💛"}
+          </button>
+        </div>
       </form>
     </div>
   );

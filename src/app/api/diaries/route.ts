@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
       music: music || null,
       images: images || [],
       coverStickers: [],
+      uploadedStickers: [],
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };

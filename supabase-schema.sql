@@ -1,8 +1,10 @@
 -- Secret Diary Database Schema for Supabase
 -- Run this SQL in your Supabase SQL Editor
 
--- IMPORTANT: If tables already exist, run this command to safely add the username column!
+-- IMPORTANT: If tables already exist, run these commands to safely add columns!
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
+-- ALTER TABLE diaries ADD COLUMN IF NOT EXISTS "uploadedStickers" JSONB DEFAULT '[]'::jsonb;
+-- ALTER TABLE diaries ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN DEFAULT FALSE;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -37,6 +39,8 @@ CREATE TABLE diaries (
   music TEXT,
   images JSONB DEFAULT '[]'::jsonb,
   "coverStickers" JSONB DEFAULT '[]'::jsonb,
+  "uploadedStickers" JSONB DEFAULT '[]'::jsonb,
+  "isHidden" BOOLEAN DEFAULT FALSE,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

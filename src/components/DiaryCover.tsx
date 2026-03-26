@@ -1,9 +1,9 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import PostPlayer from './PostPlayer';
 import { useAuth } from './AuthProvider';
-import { Palette, Trash2 } from 'lucide-react';
+import { Palette, Trash2, MoreVertical } from 'lucide-react';
 
 interface Sticker {
   id: number;
@@ -36,7 +36,23 @@ interface DiaryCoverProps {
 export default function DiaryCover({ entry, isPreview = false, children, onDelete }: DiaryCoverProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { token } = useAuth();
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
 
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -165,25 +181,46 @@ export default function DiaryCover({ entry, isPreview = false, children, onDelet
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* Action Menu */}
       {!isPreview && (
-        <div className="diary-cover-actions">
+        <div className="diary-cover-menu" ref={menuRef}>
           <button
-            className="cute-button diary-cover-decorate-button"
+            className="diary-cover-menu-button"
             onClick={(e) => {
               e.stopPropagation();
-              router.push(`/decorate/${entry.id}`);
+              setIsMenuOpen(!isMenuOpen);
             }}
           >
-            <Palette size={18} className="lucide-icon" />
+            <MoreVertical size={16} strokeWidth={2.5} />
           </button>
-          <button
-            className="cute-button diary-cover-delete-button"
-            onClick={handleDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? '⏳' : <Trash2 size={18} className="lucide-icon" />} <span className="delete-button-text">{isDeleting && '삭제 중...'}</span>
-          </button>
+
+          {isMenuOpen && (
+            <div className="diary-cover-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+              <button
+                className="diary-cover-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  router.push(`/decorate/${entry.id}`);
+                }}
+              >
+                <Palette size={16} strokeWidth={2.5} />
+                <span>표지 꾸미기</span>
+              </button>
+              <button
+                className="diary-cover-menu-item delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  handleDelete(e);
+                }}
+                disabled={isDeleting}
+              >
+                <Trash2 size={16} strokeWidth={2.5} />
+                <span>{isDeleting ? '삭제 중...' : '다이어리 삭제'}</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

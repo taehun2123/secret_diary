@@ -17,6 +17,8 @@ export interface DiaryEntry {
   music: string | null;
   images: string[];
   coverStickers: Sticker[];
+  uploadedStickers: string[];
+  isHidden: boolean;
   createdAt: string;
   updatedAt: string;
 }

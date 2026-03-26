@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Save, Trash2, Plus, X, Palette } from "lucide-react";
+import { Save, Trash2, Plus, X, Palette, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from "lucide-react";
 import DiaryCover from "@/components/DiaryCover";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -57,6 +57,7 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
         if (data.success && data.data) {
           setEntry(data.data);
           setStickers(data.data.coverStickers || []);
+          setUploadedImages(data.data.uploadedStickers || []);
         } else {
           console.error('Failed to fetch diary:', data.error);
           router.push("/");
@@ -152,6 +153,49 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
     }
   };
 
+  // Layer order functions
+  const bringToFront = (stickerId: number) => {
+    setStickers(prev => {
+      const index = prev.findIndex(s => s.id === stickerId);
+      if (index === -1 || index === prev.length - 1) return prev;
+      const newStickers = [...prev];
+      const [sticker] = newStickers.splice(index, 1);
+      newStickers.push(sticker);
+      return newStickers;
+    });
+  };
+
+  const sendToBack = (stickerId: number) => {
+    setStickers(prev => {
+      const index = prev.findIndex(s => s.id === stickerId);
+      if (index === -1 || index === 0) return prev;
+      const newStickers = [...prev];
+      const [sticker] = newStickers.splice(index, 1);
+      newStickers.unshift(sticker);
+      return newStickers;
+    });
+  };
+
+  const bringForward = (stickerId: number) => {
+    setStickers(prev => {
+      const index = prev.findIndex(s => s.id === stickerId);
+      if (index === -1 || index === prev.length - 1) return prev;
+      const newStickers = [...prev];
+      [newStickers[index], newStickers[index + 1]] = [newStickers[index + 1], newStickers[index]];
+      return newStickers;
+    });
+  };
+
+  const sendBackward = (stickerId: number) => {
+    setStickers(prev => {
+      const index = prev.findIndex(s => s.id === stickerId);
+      if (index === -1 || index === 0) return prev;
+      const newStickers = [...prev];
+      [newStickers[index], newStickers[index - 1]] = [newStickers[index - 1], newStickers[index]];
+      return newStickers;
+    });
+  };
+
   const handleSave = async () => {
     if (!token) {
       alert('로그인이 필요합니다.');
@@ -161,6 +205,13 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
     setIsSaving(true);
 
     try {
+      // Ensure all stickers have valid positions (0-100 range)
+      const validatedStickers = stickers.map(s => ({
+        ...s,
+        x: Math.max(0, Math.min(100, s.x)),
+        y: Math.max(0, Math.min(100, s.y)),
+      }));
+
       const response = await fetch(`/api/diaries/${id}/stickers`, {
         method: 'PUT',
         headers: {
@@ -168,7 +219,8 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          stickers,
+          stickers: validatedStickers,
+          uploadedStickers: uploadedImages,
         }),
       });
 
@@ -238,8 +290,12 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
     const rect = containerRef.current.getBoundingClientRect();
 
     // Calculate new top/left percentage
-    const percentX = ((e.clientX - rect.left) / rect.width) * 100 - offsetPct.x;
-    const percentY = ((e.clientY - rect.top) / rect.height) * 100 - offsetPct.y;
+    let percentX = ((e.clientX - rect.left) / rect.width) * 100 - offsetPct.x;
+    let percentY = ((e.clientY - rect.top) / rect.height) * 100 - offsetPct.y;
+
+    // Clamp to 0-100 range to prevent validation errors
+    percentX = Math.max(0, Math.min(100, percentX));
+    percentY = Math.max(0, Math.min(100, percentY));
 
     setStickers(prev => prev.map(s =>
       s.id === draggingId ? { ...s, x: percentX, y: percentY } : s
@@ -389,17 +445,59 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
                 {/* Tape */}
                 <div className="polaroid-tape"></div>
 
-                {/* Delete Button */}
-                <button
-                  className="sticker-delete-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeSticker(sticker.id);
-                  }}
-                  title="스티커 삭제"
-                >
-                  <X size={14} strokeWidth={3} />
-                </button>
+                {/* Action Buttons */}
+                <div className="sticker-action-buttons">
+                  <button
+                    className="sticker-action-btn layer-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      bringToFront(sticker.id);
+                    }}
+                    title="맨 앞으로"
+                  >
+                    <ChevronsUp size={12} strokeWidth={3} />
+                  </button>
+                  <button
+                    className="sticker-action-btn layer-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      bringForward(sticker.id);
+                    }}
+                    title="한 단계 앞으로"
+                  >
+                    <ChevronUp size={12} strokeWidth={3} />
+                  </button>
+                  <button
+                    className="sticker-action-btn layer-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      sendBackward(sticker.id);
+                    }}
+                    title="한 단계 뒤로"
+                  >
+                    <ChevronDown size={12} strokeWidth={3} />
+                  </button>
+                  <button
+                    className="sticker-action-btn layer-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      sendToBack(sticker.id);
+                    }}
+                    title="맨 뒤로"
+                  >
+                    <ChevronsDown size={12} strokeWidth={3} />
+                  </button>
+                  <button
+                    className="sticker-action-btn delete-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSticker(sticker.id);
+                    }}
+                    title="스티커 삭제"
+                  >
+                    <X size={12} strokeWidth={3} />
+                  </button>
+                </div>
 
                 {/* Image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
