@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { PenLine, Edit2, Trash2 } from "lucide-react";
 import DiaryCover from "@/components/DiaryCover";
+import ArchiveModal from "@/components/ArchiveModal";
 import { useAuth } from "@/components/AuthProvider";
 
 interface Sticker {
@@ -22,6 +23,7 @@ interface DiaryEntry {
   music: string | null;
   images: string[];
   coverStickers: Sticker[];
+  isHidden: boolean;
 }
 
 interface Category {
@@ -40,6 +42,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const { token, username } = useAuth();
   const ITEMS_PER_PAGE = 8;
 
@@ -259,7 +262,16 @@ export default function Home() {
       {/* Header */}
       <header className="main-header">
         <div className="header-title-group">
-          <Image src="/assets/duck_v8.png" alt="Duck" width={60} height={60} className="header-duck-image" priority />
+          <Image
+            src="/assets/duck_v8.png"
+            alt="Duck"
+            width={60}
+            height={60}
+            className="header-duck-image"
+            priority
+            onDoubleClick={() => setIsArchiveOpen(true)}
+            style={{ cursor: 'pointer' }}
+          />
           <div>
             <h1 className="main-title">{username ?? 'NoName'}'s Secret World</h1>
           </div>
@@ -373,6 +385,9 @@ export default function Home() {
           )}
         </>
       )}
+
+      {/* Archive Modal */}
+      <ArchiveModal isOpen={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} />
     </div>
   );
 }
