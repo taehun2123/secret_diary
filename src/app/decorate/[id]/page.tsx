@@ -27,6 +27,7 @@ interface DiaryEntry {
   music: string | null;
   images: string[];
   coverStickers: Sticker[];
+  isHidden: boolean;
 }
 
 export default function DecoratePage({ params }: { params: Promise<{ id: string }> }) {

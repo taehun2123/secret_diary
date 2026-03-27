@@ -133,9 +133,9 @@ export default function ReadPage({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  // Split content into pages (approx 800 characters per page)
+  // Split content into pages (approx 500 characters per page to prevent overflow)
   const splitContentIntoPages = (content: string): string[] => {
-    const CHARS_PER_PAGE = 800;
+    const CHARS_PER_PAGE = 500;
     const pages: string[] = [];
 
     if (content.length <= CHARS_PER_PAGE) {

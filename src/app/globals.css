@@ -2397,6 +2397,8 @@ body {
   flex-direction: column;
   gap: 20px;
   height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
 .diary-header {
@@ -2428,7 +2430,9 @@ body {
 
 .diary-content {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .content-text {
@@ -2437,6 +2441,8 @@ body {
   color: var(--text-color);
   white-space: pre-wrap;
   word-wrap: break-word;
+  overflow: hidden;
+  flex: 1;
 }
 
 .diary-music {
