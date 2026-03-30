@@ -263,7 +263,7 @@ export default function Home() {
       {/* Landing Section with Video Background */}
       <section className="landing-section">
         <video autoPlay loop muted playsInline className="landing-video">
-          <source src="/assets/Firefly Scene description-_- Time- Bright sunny afternoon, golden hour feel_- Sky- Clear blue sky wi.mp4" type="video/mp4" />
+          <source src="/assets/landing-background.mp4" type="video/mp4" />
         </video>
         <div className="landing-overlay"></div>
         <div className="landing-content">
