@@ -269,8 +269,10 @@ export default function Home() {
         <div className="landing-content">
           <TypeAnimation
             sequence={[
-              'Hello, Subin.\nWelcome Subin World✨',
-              1000
+              'Hello, Subin.\nWelcome to Subin World✨',
+              1000,
+              ' '
+              ,1000,
             ]}
             wrapper="h1"
             speed={50}
