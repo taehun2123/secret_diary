@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { PenLine, Edit2, Trash2 } from "lucide-react";
+import { TypeAnimation } from 'react-type-animation';
 import DiaryCover from "@/components/DiaryCover";
 import ArchiveModal from "@/components/ArchiveModal";
 import { useAuth } from "@/components/AuthProvider";
@@ -258,9 +259,31 @@ export default function Home() {
   const filtered = entries;
 
   return (
-    <div className="main-container">
-      {/* Header */}
-      <header className="main-header">
+    <>
+      {/* Landing Section with Video Background */}
+      <section className="landing-section">
+        <video autoPlay loop muted playsInline className="landing-video">
+          <source src="/assets/Firefly Scene description-_- Time- Bright sunny afternoon, golden hour feel_- Sky- Clear blue sky wi.mp4" type="video/mp4" />
+        </video>
+        <div className="landing-overlay"></div>
+        <div className="landing-content">
+          <TypeAnimation
+            sequence={[
+              'Hello, Subin.\nWelcome Subin World✨',
+              1000
+            ]}
+            wrapper="h1"
+            speed={50}
+            className="typing-text"
+            repeat={Infinity}
+          />
+        </div>
+      </section>
+
+      {/* Main Diary Section */}
+      <div className="main-container">
+        {/* Header */}
+        <header className="main-header">
         <div className="header-title-group">
           <Image
             src="/assets/duck_v8.png"
@@ -389,5 +412,6 @@ export default function Home() {
       {/* Archive Modal */}
       <ArchiveModal isOpen={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} />
     </div>
+    </>
   );
 }
