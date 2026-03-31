@@ -164,7 +164,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, content, category, music, images } = body;
+    const { title, content, category, music, images, isHidden } = body;
 
     // Validation
     if (title && title.length > 200) {
@@ -193,12 +193,26 @@ export async function PUT(
       );
     }
 
+    if (isHidden !== undefined && typeof isHidden !== 'boolean') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'isHidden must be a boolean',
+          },
+        },
+        { status: 400 }
+      );
+    }
+
     const updates: any = {};
     if (title !== undefined) updates.title = title;
     if (content !== undefined) updates.content = content;
     if (category !== undefined) updates.category = category;
     if (music !== undefined) updates.music = music;
     if (images !== undefined) updates.images = images;
+    if (isHidden !== undefined) updates.isHidden = isHidden;
 
     const updated = await updateDiary(id, updates);
 

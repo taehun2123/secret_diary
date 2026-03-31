@@ -85,12 +85,16 @@ export async function getDiaries(): Promise<DiaryEntry[]> {
 
 export async function getDiariesByUserId(
   userId: string,
-  options?: { limit?: number; offset?: number; category?: string }
+  options?: { limit?: number; offset?: number; category?: string; isHidden?: boolean }
 ): Promise<{ diaries: DiaryEntry[]; total: number }> {
   let query = supabase
     .from('diaries')
     .select('*', { count: 'exact' })
     .eq('userId', userId);
+
+  // Filter by hidden status - default to false (show only non-hidden diaries)
+  const isHidden = options?.isHidden !== undefined ? options.isHidden : false;
+  query = query.eq('isHidden', isHidden);
 
   // Filter by category if provided
   if (options?.category) {

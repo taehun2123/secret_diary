@@ -10,4 +10,4 @@ spec:
     - name: http
       port: 12567
       targetPort: 12567
-  type: ClusterIP
+  type: LoadBalancer

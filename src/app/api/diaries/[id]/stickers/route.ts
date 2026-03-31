@@ -69,7 +69,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { stickers } = body;
+    const { stickers, uploadedStickers } = body;
 
     if (!Array.isArray(stickers)) {
       return NextResponse.json(
@@ -78,6 +78,20 @@ export async function PUT(
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Stickers must be an array',
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate uploadedStickers if provided
+    if (uploadedStickers !== undefined && !Array.isArray(uploadedStickers)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'UploadedStickers must be an array',
           },
         },
         { status: 400 }
@@ -131,13 +145,21 @@ export async function PUT(
       }
     }
 
-    const updated = await updateDiary(id, { coverStickers: stickers });
+    const updateData: any = { coverStickers: stickers };
+
+    // Only update uploadedStickers if provided
+    if (uploadedStickers !== undefined) {
+      updateData.uploadedStickers = uploadedStickers;
+    }
+
+    const updated = await updateDiary(id, updateData);
 
     return NextResponse.json({
       success: true,
       data: {
         id: updated!.id,
         coverStickers: updated!.coverStickers,
+        uploadedStickers: updated!.uploadedStickers,
       },
     });
   } catch (error) {

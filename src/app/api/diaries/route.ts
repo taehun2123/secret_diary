@@ -41,11 +41,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
     const category = searchParams.get('category') || undefined;
+    const isHiddenParam = searchParams.get('isHidden');
+    const isHidden = isHiddenParam === 'true' ? true : isHiddenParam === 'false' ? false : undefined;
 
     const { diaries, total } = await getDiariesByUserId(payload.userId, {
       limit,
       offset,
       category,
+      isHidden,
     });
 
     return NextResponse.json({
@@ -159,6 +162,8 @@ export async function POST(request: NextRequest) {
       music: music || null,
       images: images || [],
       coverStickers: [],
+      uploadedStickers: [],
+      isHidden: false,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
